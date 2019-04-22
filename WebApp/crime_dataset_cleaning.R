@@ -20,3 +20,9 @@ levels(cleaned$Analysis_Neighborhood)[levels(cleaned$Analysis_Neighborhood)=="Oc
 levels(cleaned$Analysis_Neighborhood)[levels(cleaned$Analysis_Neighborhood)=="Treasure Island"] <- "Treasure Island/YBI"
 
 View(cleaned)
+levels(cleaned$Analysis_Neighborhood)
+
+countData <- table(cleaned$Analysis_Neighborhood)
+View(countData)
+write.csv(countData, file = "datasets/count.csv")
+
