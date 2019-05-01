@@ -2,13 +2,11 @@
 <html lang="en">
     <head>
         <style>
-
             body, html {
                 width: 100%;
                 height: 100%;
             }
             path {
-                fill: lightgray;
                 stroke: black;
                 stroke-width: 1px;
             }
@@ -17,107 +15,232 @@
                 stroke: black;
                 shape-rendering: crispEdges;
             }
-
             .axis text {
                 font-family: sans-serif;
                 font-size: 11px;
             }
-
-
             image.emoji{
                 height: 20;
                 width: 20;
                 border-radius: 50%
             }
-
             svg {
-                width:75%;
+                width:50%;
                 height:100%;
                 float: left;
             }
+            .legend rect {
+  fill:white;
+  stroke:black;
+  opacity:0.8;}
         </style>
         <meta charset="utf-8">
-        <title>D3 Test for map</title>
+        <title>Chloropleth</title>
+    <!-- Load d3.js -->
+    <script src="https://d3js.org/d3.v4.js"></script>
+    <script src="https://d3js.org/d3-geo-projection.v2.min.js"></script>
+      <script src="https://d3js.org/d3-queue.v2.min.js"></script>
+    <script>
+        function initializeMap(error, data) {
+            "use strict";
 
-        <script type="text/javascript" src="https://d3js.org/d3.v3.min.js"></script>
-        <script src="https://d3js.org/d3-queue.v2.min.js"></script>
+            if (error) throw error;
+            
+            var mapping = d3.select('#map').selectAll('path')
+                .data(data[0].features)
+                .enter().append('path')
+                .attr('d', path)
+                .attr('fill', 'lightgray');
+
+            // add the neighborhood name as its class
+            mapping.attr('class', function(d) {
+                return d.properties.name;
+            });
+        }
+
+        function drawEmojiMap(error, data) {
+            "use strict";
+
+            if (error) throw error;
+
+            d3.selectAll("svg > *").remove();
+
+            var image1 = "https://raw.githubusercontent.com/ZachRPalmer/COSC4500-Project/master/WebApp/images/Smile1.png";
+            var image2 = "https://raw.githubusercontent.com/ZachRPalmer/COSC4500-Project/master/WebApp/images/SlightlySmilingFaceEmoji.png";
+            var image3 = "https://raw.githubusercontent.com/ZachRPalmer/COSC4500-Project/master/WebApp/images/ConfusedFaceEmoji.png";
+            var image4 = "https://raw.githubusercontent.com/ZachRPalmer/COSC4500-Project/master/WebApp/images/VerySadEmoji.png";
+
+            var mapping = d3.select('#map').selectAll('path')
+                .data(data[0].features)
+                .enter().append('path')
+                .attr('d', path)
+                .attr('fill', 'lightgray');
+            // add the neighborhood name as its class
+            mapping.attr('class', function(d) {
+                return d.properties.name;
+            });
+            //load in total incident reports per neighboorhood, and append it to the neighborhood class
+            var icons = d3.select('#map').append("g")
+                .attr('class', "icon")
+                .selectAll("image")
+                .data(data[0].features)
+                .enter()
+                .append("image")
+                .attr('class', 'emoji');
+
+            icons.datum(function(d) {
+                d.freq = data[1][d.properties.name];
+                return d;
+            })
+            //load icons based on total number of incidents
+            icons
+                .attr("x", function(d) {
+                    return path.centroid(d.geometry)[0] - 15;
+                })
+                .attr("y", function(d) {
+                    return path.centroid(d.geometry)[1] - 15;
+                })
+                .attr("height", function(d) {
+                    return 30
+                })
+                .attr("width", function(d) {
+                    return 30
+                })
+                .attr("xlink:href", function(d) {
+                    if (d.freq < 4000)
+                        return image1;
+                    else if (d.freq < 8000)
+                        return image2;
+                    else if (d.freq < 12000)
+                        return image3;
+                    else
+                        return image4;
+                });
+
+        }
+
+        function drawLegendMap(error, data) {
+            "use strict";
+
+            if (error) throw error;
+
+            d3.selectAll("svg > *").remove();
+
+            var minVal = 0;
+            var maxVal = 21157;
+            var lowColor = "#fff7bc";
+            var highColor = "#662506";
+            var ramp = d3.scaleLinear().domain([minVal, maxVal]).range([lowColor, highColor])
+
+            var mapping = d3.select('#map').selectAll('path')
+                .data(data[0].features)
+                .enter()
+                .append('path')
+                .attr('d', path)
+                .attr('class', function(d) {
+                    return d.properties.name
+                })
+                .style('fill', function(d) {
+                    d.freq = data[1][d.properties.name];
+                    return ramp(d.freq);
+                })
+            // Displays a legend for the map based on the indexes of the colors used in the chloropleth map
+            // Design sampled from Bill Morris @https://bl.ocks.org/wboykinm/dbbe50d1023f90d4e241712395c27fb3
+            var w = 140,
+                h = 450;
+
+            var key = d3.select("#legend")
+                .append("svg")
+                .attr("width", w)
+                .attr("height", h)
+                .attr("class", "legend");
+
+            var legend = key.append("defs")
+                .append("svg:linearGradient")
+                .attr("id", "gradient")
+                .attr("x1", "100%")
+                .attr("y1", "0%")
+                .attr("x2", "100%")
+                .attr("y2", "100%")
+                .attr("spreadMethod", "pad");
+
+            legend.append("stop")
+                .attr("offset", "0%")
+                .attr("stop-color", highColor)
+                .attr("stop-opacity", 1);
+
+            legend.append("stop")
+                .attr("offset", "100%")
+                .attr("stop-color", lowColor)
+                .attr("stop-opacity", 1);
+
+            key.append("rect")
+                .attr("width", w - 100)
+                .attr("height", h)
+                .style("fill", "url(#gradient)")
+                .attr("transform", "translate(0,50)");
+
+            var y = d3.scaleLinear()
+                .range([h, 0])
+                .domain([minVal, maxVal]);
+
+            var yAxis = d3.axisRight(y);
+
+            key.append("g")
+                .attr("class", "y axis")
+                .attr("transform", "translate(41,50)")
+                .call(yAxis)
+        }
+    </script>
 
     </head>
     
     <body>
-        <h1>San Francisco, CA</h1>
+        <h1>Crime Incidents by Neighborhood</h1>
+        <div>
+          <input type="radio" name="mapType" value="emoji" onclick="drawNewMap()"> Emoji<br>
+          <input type="radio" name="mapType" value="legend" onclick="drawChloroMap()"> Legend<br>
+        </div>
         <svg id="map"></svg>
+        <svg id="legend"></svg>
             <script type="text/javascript">
                 var url1 = "https://raw.githubusercontent.com/ZachRPalmer/COSC4500-Project/master/WebApp/SanFrancisco.geojson";
-                var url2 = "https://raw.githubusercontent.com/ZachRPalmer/COSC4500-Project/master/WebApp/count.json";
-                var image1 = "https://raw.githubusercontent.com/ZachRPalmer/COSC4500-Project/master/WebApp/images/Smile1.png";
-                var image2 = "https://raw.githubusercontent.com/ZachRPalmer/COSC4500-Project/master/WebApp/images/SlightlySmilingFaceEmoji.png";
-                var image3 = "https://raw.githubusercontent.com/ZachRPalmer/COSC4500-Project/master/WebApp/images/ConfusedFaceEmoji.png";
-                var image4 = "https://raw.githubusercontent.com/ZachRPalmer/COSC4500-Project/master/WebApp/images/VerySadEmoji.png";
-                   
-                   var margin = 50,
-                       width = 500 - margin,
-                       height = 550 - margin;
-                
-                // projection for San Francisco
-                // borrowed from Jonathon Dinu @ http://bl.ocks.org/hopelessoptimism/b8ef4734abad1c644221
-               var projection = d3.geo.mercator()
-                                       .center([-122.433701, 37.767683])
-                                       .scale(200000)
-                                       .translate([width/1.5, height/1.74]);
+                var url2 = "https://raw.githubusercontent.com/ZachRPalmer/EmojiMaps/master/WebApp/count.json";
 
-               var path = d3.geo.path()
-                                   .projection(projection);
+                var margin = 50,
+                    width = 450 - margin,
+                    height = 500 - margin;
 
-                d3.json(url1, function(err, geojson){
-                    if(err){
-                        return console.error(err);
-                    }
+                var svg = d3.select("body").append("svg")
+                    .attr("width", width)
+                    .attr("height", height);
 
-                   var mapping = d3.select('#map').selectAll('path')
-                                   .data(geojson.features)
-                                   .enter().append('path')
-                                   .attr('d', path);
-                    
-                        // add the neighborhood name as its class
-                   mapping.attr('class', function(d){
-                        return d.properties.name;
-                   });
+                //Projection for San Francisco, CA
+                var projection = d3.geoMercator()
+                    .center([-122.433701, 37.767683])
+                    .scale(175000)
+                    .translate([width / 1.5, height / 1.74]);
 
-                        //load in total incident reports per neighboorhood, and append it to the neighborhood class
-                    d3.json(url2, function(err, data){
-                        var icons = d3.select('#map').append("g")
-                                 .attr('class', "icon")
-                                 .selectAll("image")
-                                 .data(geojson.features)
-                                 .enter()
-                                 .append("image")
-                                 .attr('class', 'emoji');
-                            
-                            icons.datum(function(d){
-                                d.freq = data[d.properties.name];
-                                return d;
-                            })
+                var path = d3.geoPath()
+                    .projection(projection);
 
-                            //load icons based on total number of incidents
-                            icons
-                                .attr("x", function(d) { return path.centroid(d.geometry)[0]-15; })
-                                .attr("y", function(d) { return path.centroid(d.geometry)[1]-15; })
-                                .attr("height", function(d) { return 30 })
-                                .attr("width", function(d) { return 30 })
-                                .attr("xlink:href", function(d) { if(d.freq < 2000)
-                                                                    return image1;
-                                                                  else if(d.freq < 5000)
-                                                                    return image2;
-                                                                  else if(d.freq < 1000)
-                                                                    return image3;
-                                                                  else
-                                                                    return image4;
-                                                                });
+                var q = d3_queue.queue(2)
+                                .defer(d3.json, url1)
+                                .defer(d3.json, url2)
+                                .awaitAll(initializeMap);
 
-                    });
-
-                });
+                function drawNewMap(){
+                  var q = d3_queue.queue(2)
+                                .defer(d3.json, url1)
+                                .defer(d3.json, url2)
+                                .awaitAll(drawEmojiMap);
+                }
+                function drawChloroMap(){
+                    var q = d3_queue.queue(2)
+                                .defer(d3.json, url1)
+                                .defer(d3.json, url2)
+                                .awaitAll(drawLegendMap);
+                }
 
             </script>
     </body>
